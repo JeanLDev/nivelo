@@ -16,7 +16,8 @@ import {
   Database,
   Info,
   Sliders,
-  Sparkles
+  Sparkles,
+  FormInput
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
@@ -38,6 +39,7 @@ interface Membro {
   curso: string;
   data_ingresso: string;
   campos_personalizados: Record<string, any>;
+  matricula:string;
 }
 
 
@@ -378,7 +380,7 @@ export default function ManagerEquipe() {
           <div>
             <h1 className="text-2xl font-semibold text-slate-900 tracking-tight flex items-center gap-2">
               Gerenciamento de Equipe
-              <span className="bg-emerald-100 text-emerald-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+              <span className="bg-emerald-100 text-emerald-800 text-sm font-medium px-2.5 py-0.5 rounded-full">
                 {membros?.length} {membros?.length === 1 ? 'Membro' : 'Membros'}
               </span>
             </h1>
@@ -419,7 +421,7 @@ export default function ManagerEquipe() {
           {busca && (
             <button 
               onClick={() => setBusca('')}
-              className="text-xs text-emerald-800 hover:underline px-2 self-center cursor-pointer font-semibold"
+              className="text-sm text-emerald-800 hover:underline px-2 self-center cursor-pointer font-semibold"
             >
               Limpar Busca
             </button>
@@ -431,19 +433,19 @@ export default function ManagerEquipe() {
           {carregando ? (
             <div className="py-20 flex flex-col justify-center items-center gap-3">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-800"></div>
-              <p className="text-xs text-slate-600 font-medium">Processando informações...</p>
+              <p className="text-sm text-slate-600 font-medium">Processando informações...</p>
             </div>
           ) : membrosFiltrados?.length === 0 ? (
             <div className="py-16 text-center">
               <UserPlus className="mx-auto text-slate-300 mb-3" size={48} />
               <p className="text-slate-600 font-medium">Nenhum membro encontrado</p>
-              <p className="text-slate-600 text-xs mt-1 max-w-xs mx-auto">
+              <p className="text-slate-600 text-sm mt-1 max-w-xs mx-auto">
                 {busca ? 'Experimente modificar o termo de busca ou' : 'Adicione seu primeiro membro para povoar a equipe!'}
               </p>
               {!busca && (
                 <button
                   onClick={() => abrirModalMembro()}
-                  className="mt-4 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-2xl text-xs font-semibold"
+                  className="mt-4 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-2xl text-sm font-semibold"
                 >
                   Adicionar Membro
                 </button>
@@ -468,7 +470,8 @@ export default function ManagerEquipe() {
                     <tr key={membro.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="py-4 px-6">
                         <div className="font-semibold text-slate-900">{membro.nome}</div>
-                        <div className="flex flex-col gap-0.5 mt-1 text-xs text-slate-500">
+                        <div className="flex flex-col gap-0.5 mt-1 text-sm text-slate-500">
+                          <span className="flex items-center gap-1.5"><FormInput size={12} /> {membro.matricula}</span>
                           <span className="flex items-center gap-1.5"><Mail size={12} /> {membro.email}</span>
                           {membro.telefone && <span className="flex items-center gap-1.5"><Phone size={12} /> {membro.telefone}</span>}
                         </div>
@@ -476,11 +479,11 @@ export default function ManagerEquipe() {
                       <td className="py-4 px-6">
                         <div className="text-slate-700 flex items-center gap-1.5 font-medium">
                           <GraduationCap size={14} className="text-slate-600" />
-                          {membro.curso || <span className="text-slate-600 text-xs ">Não informado</span>}
+                          {membro.curso || <span className="text-slate-600 text-sm ">Não informado</span>}
                         </div>
-                        <div className="text-xs text-slate-600 mt-1 pl-5">{membro.universidade || '-'}</div>
+                        <div className="text-sm text-slate-600 mt-1 pl-5">{membro.universidade || '-'}</div>
                       </td>
-                      <td className="py-4 px-6 text-slate-600 text-xs whitespace-nowrap">
+                      <td className="py-4 px-6 text-slate-600 text-sm whitespace-nowrap">
                         <span className="flex items-center gap-1.5">
                           <Calendar size={13} className="text-slate-600" />
                           {membro.data_ingresso ? new Date(membro.data_ingresso + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
@@ -490,7 +493,7 @@ export default function ManagerEquipe() {
                       {definicoesCampos?.map(c => {
                         const valor = membro.campos_personalizados?.[c.nome_campo];
                         return (
-                          <td key={c.id} className="py-4 px-6 text-xs text-slate-600">
+                          <td key={c.id} className="py-4 px-6 text-sm text-slate-600">
                             {c.tipo_campo === 'boolean' ? (
                               <span className={`px-2 py-0.5 rounded-full font-semibold ${valor ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>
                                 {valor ? 'Sim' : 'Não'}
@@ -533,7 +536,7 @@ export default function ManagerEquipe() {
       {/* MODAL: Adicionar / Editar Membro */}
       {modalMembroAberto && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex justify-center items-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-scaleIn">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[95vh] flex flex-col overflow-hidden animate-scaleIn">
             
             {/* Cabeçalho do Modal */}
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
@@ -551,10 +554,10 @@ export default function ManagerEquipe() {
               
               {/* Seção 1: Dados Padrão Obrigatórios */}
               <div>
-                <h3 className="text-xs font-semibold uppercase text-emerald-800 tracking-wider mb-3">Informações Principais</h3>
+                <h3 className="text-sm font-semibold  text-emerald-800 tracking-wider mb-3">Informações Principais</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="sm:col-span-2">
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Nome Completo *</label>
+                    <label className="block text-sm font-medium text-slate-600 mb-1">Nome Completo *</label>
                     <input
                       type="text"
                       required
@@ -565,7 +568,7 @@ export default function ManagerEquipe() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">E-mail *</label>
+                    <label className="block text-sm font-medium text-slate-600 mb-1">E-mail *</label>
                     <input
                       type="email"
                       required
@@ -576,7 +579,7 @@ export default function ManagerEquipe() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Telefone</label>
+                    <label className="block text-sm font-medium text-slate-600 mb-1">Telefone</label>
                     <input
                       type="text"
                       value={membroForm.telefone}
@@ -590,10 +593,10 @@ export default function ManagerEquipe() {
 
               {/* Seção 2: Dados Acadêmicos */}
               <div>
-                <h3 className="text-xs font-semibold uppercase text-emerald-800 tracking-wider mb-3">Acadêmico & Ingresso</h3>
+                <h3 className="text-sm font-semibold  text-emerald-800 tracking-wider mb-3">Acadêmico & Ingresso</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Universidade</label>
+                    <label className="block text-sm font-medium text-slate-600 mb-1">Universidade</label>
                     <input
                       type="text"
                       value={membroForm.universidade}
@@ -603,7 +606,7 @@ export default function ManagerEquipe() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Curso</label>
+                    <label className="block text-sm font-medium text-slate-600 mb-1">Curso</label>
                     <input
                       type="text"
                       value={membroForm.curso}
@@ -613,7 +616,7 @@ export default function ManagerEquipe() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Data de Ingressão</label>
+                    <label className="block text-sm font-medium text-slate-600 mb-1">Data de Ingressão</label>
                     <input
                       type="date"
                       value={membroForm.data_ingresso}
@@ -628,13 +631,13 @@ export default function ManagerEquipe() {
               {definicoesCampos?.length > 0 && (
                 <div>
                   <div className="flex items-center gap-1.5 mb-3">
-                    <h3 className="text-xs font-semibold uppercase text-slate-600 tracking-wider">Campos Personalizados</h3>
+                    <h3 className="text-sm font-semibold  text-slate-600 tracking-wider">Campos Personalizados</h3>
                     <Sparkles size={12} className="text-emerald-800 animate-pulse" />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
                     {definicoesCampos?.map((c) => (
                       <div key={c.id}>
-                        <label className="block text-xs font-medium text-slate-700 mb-1">
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
                           {c.label} {c.obrigatorio && '*'}
                         </label>
                         {c.tipo_campo === 'boolean' ? (
@@ -645,7 +648,7 @@ export default function ManagerEquipe() {
                               onChange={(e) => handleCustomFieldChange(c.nome_campo, e.target.checked)}
                               className="h-4 w-4 text-emerald-800 border-slate-300 rounded focus:ring-emerald-800"
                             />
-                            <span className="ml-2 text-xs text-slate-500">Marcar como verdadeiro</span>
+                            <span className="ml-2 text-sm text-slate-500">Marcar como verdadeiro</span>
                           </div>
                         ) : (
                           <input
@@ -713,7 +716,7 @@ export default function ManagerEquipe() {
             <div className="p-6 flex-1 overflow-y-auto space-y-6">
               
               {/* Informação contextual */}
-              <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-3.5 text-xs text-emerald-800 flex gap-2.5">
+              <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-3.5 text-sm text-emerald-800 flex gap-2.5">
                 <Info size={16} className="shrink-0 mt-0.5" />
                 <p className="leading-relaxed">
                   Adicione campos que não vêm por padrão no sistema (ex: <b>LinkedIn, Cargo, RG, Semestre</b>). O formulário de cadastro de membros se ajustará instantaneamente para exibir as novas opções.
@@ -722,11 +725,11 @@ export default function ManagerEquipe() {
 
               {/* Criar novo Campo */}
               <form onSubmit={adicionarCampoPersonalizado} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-4">
-                <h3 className="text-xs font-semibold uppercase text-slate-600 tracking-wider">Criar Novo Campo</h3>
+                <h3 className="text-sm font-semibold  text-slate-600 tracking-wider">Criar Novo Campo</h3>
                 
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">Rótulo / Nome de Exibição</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Rótulo / Nome de Exibição</label>
                     <input
                       type="text"
                       required
@@ -739,7 +742,7 @@ export default function ManagerEquipe() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-slate-700 mb-1">Tipo de Campo</label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de Campo</label>
                       <select
                         value={novoCampoForm.tipo_campo}
                         onChange={(e) => setNovoCampoForm({ ...novoCampoForm, tipo_campo: e.target.value as any })}
@@ -753,7 +756,7 @@ export default function ManagerEquipe() {
                     </div>
 
                     <div className="flex items-center h-full pt-5">
-                      <label className="flex items-center text-xs text-slate-600 cursor-pointer">
+                      <label className="flex items-center text-sm text-slate-600 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={novoCampoForm.obrigatorio}
@@ -769,7 +772,7 @@ export default function ManagerEquipe() {
                 <button
                   type="submit"
                   disabled={carregando}
-                  className="w-full py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-2xl text-xs font-semibold shadow-sm transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                  className="w-full py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-2xl text-sm font-semibold shadow-sm transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                 >
                   <Plus size={14} /> Adicionar Campo
                 </button>
@@ -777,13 +780,13 @@ export default function ManagerEquipe() {
 
               {/* Lista dos Campos Existentes */}
               <div className="space-y-3">
-                <h3 className="text-xs font-semibold uppercase text-slate-600 tracking-wider">Campos Personalizados Ativos</h3>
+                <h3 className="text-sm font-semibold  text-slate-600 tracking-wider">Campos Personalizados Ativos</h3>
                 {definicoesCampos?.length === 0 ? (
-                  <p className="text-xs text-slate-600 ">Nenhum campo personalizado adicionado até o momento.</p>
+                  <p className="text-sm text-slate-600 ">Nenhum campo personalizado adicionado até o momento.</p>
                 ) : (
                   <div className="divide-y divide-slate-100 border border-slate-100 rounded-2xl overflow-hidden">
                     {definicoesCampos?.map((c) => (
-                      <div key={c.id} className="flex justify-between items-center p-3 hover:bg-slate-50 text-xs">
+                      <div key={c.id} className="flex justify-between items-center p-3 hover:bg-slate-50 text-sm">
                         <div>
                           <p className="font-semibold text-slate-800">{c.label}</p>
                           <p className="text-[10px] text-slate-600 mt-0.5">
@@ -809,7 +812,7 @@ export default function ManagerEquipe() {
             <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end">
               <button
                 onClick={() => setModalCamposAberto(false)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-2xl text-xs font-semibold transition-colors cursor-pointer"
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-2xl text-sm font-semibold transition-colors cursor-pointer"
               >
                 Concluir
               </button>

@@ -22,6 +22,8 @@ import QrCodereg from "./pages/Eventos/public/QrCodereg"
 import ManagerEquipe from './pages/Equipe/ManagerEquipe';
 import ManagerReunioes from './pages/Reunioes/ManagerReunioes';
 import ManagerColaboradores from './pages/Colaboradores/ManagerColaboradores';
+import Presenca from './pages/Reunioes/Presenca';
+import MeetConfirm from './Public/Reunioes/MeetConfirm';
 
 
 export default function App() {
@@ -154,6 +156,7 @@ export default function App() {
  return (
   <Routes>
     <Route path="/reset-password" element={<ResetPassword />} />
+    <Route path="/meet/confirm/:id" element={<MeetConfirm />} />
     <Route path="/event/:id" 
       element={
       <EventPublic  
@@ -232,6 +235,16 @@ export default function App() {
                     </ProtectedRoute>
                   }
                 />
+                <Route
+                  path="/presenca"
+                  element={
+                    <ProtectedRoute allowedRoles={[ROLES.OWNER]} cargo={cargo}>
+                      <Presenca />
+                    </ProtectedRoute>
+                  }
+                />
+
+
                 {/**Reuniões */}
                 <Route
                 path="/reunioes"

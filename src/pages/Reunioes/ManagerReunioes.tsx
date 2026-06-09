@@ -15,13 +15,13 @@ import {
   BookOpen,
   CheckSquare,
   ChevronRight,
-  Info
+  Info,
+  Check,
+  Copy,
+  ExternalLink
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
-// --- CONFIGURAÇÃO DO SUPABASE ---
-const SUPABASE_URL = ""; 
-const SUPABASE_ANON_KEY = "";
 
 // --- INTERFACES ---
 interface Member {
@@ -47,6 +47,7 @@ interface Meeting {
   agenda: string;
   notes?: string;
   created_at: string;
+  codigo:string;
 }
 
 interface ActionItem {
@@ -85,6 +86,7 @@ export default function ManagerReunioes() {
   const [selectedAttendees, setSelectedAttendees] = useState<string[]>([]); // Lista de nomes selecionados
   const [newAgenda, setNewAgenda] = useState('');
   const [newNotes, setNewNotes] = useState('');
+  const [codigo, setCodigo] = useState('')
 
   // Itens de ação temporários no formulário de criação
   const [tempActions, setTempActions] = useState<Omit<ActionItem, 'id' | 'meeting_id' | 'created_at'>[]>([]);
@@ -94,6 +96,37 @@ export default function ManagerReunioes() {
   const [tempEmail, setTempEmail] = useState('');
   const [tempDueDate, setTempDueDate] = useState('');
 
+
+  //Gerar código
+  useEffect(() => {
+    const caracteres = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+    const codigo = Array.from({ length: 8 }, () =>
+      caracteres[Math.floor(Math.random() * caracteres.length)]
+    ).join('');
+
+    setCodigo(codigo);
+  }, []);
+
+  //copiar codigo
+  const [copiadoCodigo, setCopiadoCodigo] = useState(false);
+  const [copiadoLink, setCopiadoLink] = useState(false);
+
+  const copiarCodigo = async (texto: string, tipo: 'codigo' | 'link') => {
+    try {
+      await navigator.clipboard.writeText(texto);
+
+      if (tipo === 'codigo') {
+        setCopiadoCodigo(true);
+        setTimeout(() => setCopiadoCodigo(false), 2000);
+      } else {
+        setCopiadoLink(true);
+        setTimeout(() => setCopiadoLink(false), 2000);
+      }
+    } catch (error) {
+      console.error('Erro ao copiar:', error);
+    }
+  };
 
   // --- CARREGAR DADOS ---
   useEffect(() => {
@@ -196,13 +229,14 @@ export default function ManagerReunioes() {
       recorder: newRecorder,
       attendees: selectedAttendees,
       agenda: newAgenda,
-      notes: newNotes || null
+      notes: newNotes || null,
+      codigo
     };
 
     try {
       let createdMeeting: Meeting;
 
-      if (supabase && SUPABASE_URL && SUPABASE_ANON_KEY) {
+      if (supabase) {
         const { data, error } = await supabase
           .from('meeting_minutes')
           .insert([meetingPayload])
@@ -227,29 +261,7 @@ export default function ManagerReunioes() {
 
           if (actionError) throw actionError;
         }
-      } else {
-        const generatedId = Math.random().toString(36).substring(2, 9);
-        createdMeeting = {
-          id: generatedId,
-          ...meetingPayload,
-          location: meetingPayload.location || undefined,
-          notes: meetingPayload.notes || undefined,
-          start_time: meetingPayload.start_time || undefined,
-          end_time: meetingPayload.end_time || undefined,
-          next_meeting_date: meetingPayload.next_meeting_date || undefined,
-          created_at: new Date().toISOString()
-        };
-
-        const newActions: ActionItem[] = tempActions.map((act, i) => ({
-          id: `act-${generatedId}-${i}`,
-          meeting_id: generatedId,
-          ...act,
-          created_at: new Date().toISOString()
-        }));
-
-        setMeetings(prev => [createdMeeting, ...prev]);
-        setActionItems(prev => [...prev, ...newActions]);
-      }
+      } 
 
       setNewTitle('');
       setNewDate(new Date().toISOString().split('T')[0]);
@@ -263,13 +275,12 @@ export default function ManagerReunioes() {
       setNewAgenda('');
       setNewNotes('');
       setTempActions([]);
+      setCodigo('')
       
-      if (supabase && SUPABASE_URL && SUPABASE_ANON_KEY) {
+      if (supabase) {
         await fetchData();
-      } else {
-        setSelectedMeeting(createdMeeting);
-      }
-
+      } 
+      
       showAlert('success', 'Ata de reunião registrada com sucesso!');
       setActiveTab('list');
 
@@ -278,6 +289,7 @@ export default function ManagerReunioes() {
       showAlert('error', 'Erro ao salvar ata: ' + err.message);
     }
   };
+  
 
   const handleToggleStatus = async (actionId: string, currentStatus: string) => {
     const statuses: ('Pendente' | 'Em Andamento' | 'Concluído')[] = ['Pendente', 'Em Andamento', 'Concluído'];
@@ -285,7 +297,7 @@ export default function ManagerReunioes() {
     const nextStatus = statuses[(currentIndex + 1) % statuses.length];
 
     try {
-      if (supabase && SUPABASE_URL && SUPABASE_ANON_KEY) {
+      if (supabase) {
         const { error } = await supabase
           .from('action_items')
           .update({ status: nextStatus })
@@ -309,7 +321,7 @@ export default function ManagerReunioes() {
     }
 
     try {
-      if (supabase && SUPABASE_URL && SUPABASE_ANON_KEY) {
+      if (supabase) {
         const { error } = await supabase
           .from('meeting_minutes')
           .delete()
@@ -518,7 +530,41 @@ export default function ManagerReunioes() {
                               <Calendar className="w-3.5 h-3.5" />
                               {selectedMeeting.date}
                             </span>
-                            <h2 className="text-xl font-semibold text-slate-900 mt-2">{selectedMeeting.title}</h2>
+                            <h2 className="text-3xl font-semibold text-slate-900 mt-2 pl-2">{selectedMeeting.title}</h2>
+                            <div className="flex items-center gap-2 mt-2">
+                              <span className="text-sm font-semibold text-green-700 bg-slate-200 px-3 py-1 rounded-2xl">
+                                {selectedMeeting.codigo}
+                              </span>
+
+                              <button
+  onClick={() => copiarCodigo(selectedMeeting.codigo, 'codigo')}
+  className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 transition"
+  title="Copiar código"
+>
+  {copiadoCodigo ? (
+    <Check size={16} className="text-green-600" />
+  ) : (
+    <Copy size={16} className="text-slate-600" />
+  )}
+                              </button>
+
+                              <button
+                                onClick={() =>
+                                  copiarCodigo(
+                                    `${window.location.origin}/meet/confirm/${selectedMeeting.id}`,
+                                    'link'
+                                  )
+                                }
+                                className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 transition"
+                                title="Copiar link de presença"
+                              >
+                                {copiadoLink ? (
+                                  <Check size={16} className="text-green-600" />
+                                ) : (
+                                  <ExternalLink size={16} className="text-slate-600" />
+                                )}
+                              </button>
+                            </div>
                           </div>
                           
                           <button 
@@ -528,10 +574,11 @@ export default function ManagerReunioes() {
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
+
                         </div>
 
                         {/* Metadados da reunião */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-100 text-sm">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 pt-6 border-t border-slate-100 text-sm">
                           <div>
                             <span className="text-slate-600 block mb-1">FACILITADOR(A)</span>
                             <span className="font-semibold text-slate-800 flex items-center gap-1">
@@ -819,15 +866,28 @@ export default function ManagerReunioes() {
                           className="w-full px-4 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-green-700 outline-none"
                         />
                       </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-slate-600 mb-1">Data da Próxima Reunião</label>
+                      <div className='grid sm:grid-cols-2 gap-2'>
+                        <div>
+                          <label className="block text-sm font-semibold text-slate-600 mb-1">Data da Próxima Reunião</label>
+                          <input
+                            type="date"
+                            value={newNextMeetingDate}
+                            onChange={(e) => setNewNextMeetingDate(e.target.value)}
+                            className="w-full px-4 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-green-700 outline-none"
+                          />
+                        </div>
+                        <div>
+                        <label className="block text-sm font-semibold text-slate-600 mb-1">Código</label>
                         <input 
-                          type="date" 
-                          value={newNextMeetingDate}
-                          onChange={(e) => setNewNextMeetingDate(e.target.value)}
+                          type="text" 
+                          disabled
+                          value={codigo}
+                          onChange={(e) => setCodigo(e.target.value)}
                           className="w-full px-4 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-green-700 outline-none"
                         />
                       </div>
+                      </div>
+                      
                     </div>
                   </div>
 

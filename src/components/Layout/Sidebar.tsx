@@ -50,14 +50,36 @@ export default function Sidebar({ userEmail,cargo }: SidebarProps) {
       path: '/equipe',
       label: 'Integrantes',
       icon: Users,
-      allowedRoles: [ROLES.OWNER]
+      allowedRoles: [ROLES.OWNER],
+      subPath: [
+        { 
+          id: 'horas', 
+          path: '/equipe/horas', 
+          label: 'Banco de horas',
+          allowedRoles: [ROLES.OWNER]
+        }
+      ]
     },
     {
       id:'reunioes',
       path: '/reunioes',
       label: 'Reuniões',
       icon: Book,
-      allowedRoles: [ROLES.OWNER]
+      allowedRoles: [ROLES.OWNER],
+      subPath: [
+      { 
+        id: 'atas', 
+        path: '/reunioes', 
+        label: 'Atas',
+        allowedRoles: [ROLES.OWNER]
+      },
+      { 
+        id: 'presença', 
+        path: '/presenca', 
+        label: 'Presença',
+        allowedRoles: [ROLES.OWNER]
+      },
+    ]
     },
     {
       id:'colaboradores',
@@ -72,14 +94,6 @@ export default function Sidebar({ userEmail,cargo }: SidebarProps) {
     label: 'Eventos',
     icon: Ticket,
     allowedRoles: [ROLES.OWNER],
-    subPath: [
-      { 
-        id: 'eventos', 
-        path: '/eventos', 
-        label: 'Eventos',
-        allowedRoles: [ROLES.OWNER]
-      }
-    ]
   }
 ];
 

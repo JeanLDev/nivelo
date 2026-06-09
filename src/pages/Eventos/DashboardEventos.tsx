@@ -58,7 +58,7 @@ const DashboardEvents = () => {
           <p className="text-slate-500">Gerencie suas inscrições e formulários em um só lugar.</p>
         </div>
         <div>
-          <Link to="/eventos/create" className="bg-green-700 text-white px-6 py-3 rounded-md font-semibold hover:bg-green-600 transition-all shadow-lg shadow-indigo-100 truncate">
+          <Link to="/eventos/create" className="bg-green-700 text-white px-6 py-3 rounded-2xl font-semibold hover:bg-green-600 transition-all shadow-lg shadow-indigo-100 truncate">
             Novo Evento
           </Link>
         </div>
@@ -79,7 +79,7 @@ const DashboardEvents = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
           {events.map((event) => (
-            <div key={event.id} className="bg-white rounded-md shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow group">
+            <div key={event.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow group">
               <div className="relative h-48">
                 <img 
                   src={event.bannerUrl || `https://picsum.photos/seed/${event.id}/800/400`} 
@@ -194,16 +194,16 @@ const DashboardEvents = () => {
                 <div className="flex flex-col space-y-2">
                   <Link 
                     to={`/eventos/app/${event.id}`} 
-                    className="w-full text-center bg-green-900 text-white py-2 rounded-md font-medium hover:bg-green-800 transition-colors"
+                    className="w-full text-center bg-green-900 text-white py-2 rounded-2xl font-medium hover:bg-green-800 transition-colors"
                   >
                     Acessar
                   </Link>
                   <div className="flex gap-2">
                     <Link 
                       to={`/event/${event.id}`}
-                      className="flex-1 text-center bg-green-50 text-green-700 py-2 rounded-md font-medium hover:bg-green-100 transition-colors"
+                      className="flex-1 text-center bg-green-50 text-green-700 py-2 rounded-2xl font-medium hover:bg-green-100 transition-colors"
                     >
-                      Ver Formulário
+                     Evento
                     </Link>
                     <button 
                       onClick={() => copyToClipboard(event.id)}
