@@ -24,6 +24,9 @@ import ManagerReunioes from './pages/Reunioes/ManagerReunioes';
 import ManagerColaboradores from './pages/Colaboradores/ManagerColaboradores';
 import Presenca from './pages/Reunioes/Presenca';
 import MeetConfirm from './Public/Reunioes/MeetConfirm';
+import Pagamentos from './pages/Equipe/Financeiro/Pagamentos';
+import Financeiro from './pages/Financeiro/Financeiro';
+import BancoHorasManager from './pages/Equipe/Horas/HoursDatabase';
 
 
 export default function App() {
@@ -236,14 +239,35 @@ export default function App() {
                   }
                 />
                 <Route
-                  path="/presenca"
+                  path="/equipe/pagamentos"
                   element={
                     <ProtectedRoute allowedRoles={[ROLES.OWNER]} cargo={cargo}>
-                      <Presenca />
+                      <Pagamentos />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/equipe/horas"
+                  element={
+                    <ProtectedRoute allowedRoles={[ROLES.OWNER]} cargo={cargo}>
+                      <BancoHorasManager />
                     </ProtectedRoute>
                   }
                 />
 
+
+
+
+
+                {/**Financeiro */}
+                <Route
+                  path="/financeiro"
+                  element={
+                    <ProtectedRoute allowedRoles={[ROLES.OWNER]} cargo={cargo}>
+                      <Financeiro />
+                    </ProtectedRoute>
+                  }
+                />
 
                 {/**Reuniões */}
                 <Route
@@ -254,6 +278,17 @@ export default function App() {
                   </ProtectedRoute>
                 }
                 />
+                <Route
+                  path="/presenca"
+                  element={
+                    <ProtectedRoute allowedRoles={[ROLES.OWNER]} cargo={cargo}>
+                      <Presenca />
+                    </ProtectedRoute>
+                  }
+                />
+
+
+
                 {/**Colaboradores */}
                 <Route
                 path="/colaboradores"

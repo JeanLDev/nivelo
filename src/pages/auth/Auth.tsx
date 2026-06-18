@@ -106,7 +106,7 @@ export default function App() {
           <span className="text-sm font-medium tracking-wide">Plataforma Administrativa</span>
         </div>
         
-        <h1 className="text-5xl xl:text-6xl font-extrabold tracking-tight leading-none">
+        <h1 className="text-5xl xl:text-6xl font-bold tracking-tight leading-none">
           Lidere com <br />
           <span className="bg-clip-text text-transparent bg-gradient-to-r from-green-300 via-emerald-300 to-sky-300">
             Inteligência e Visão.
@@ -117,16 +117,7 @@ export default function App() {
           Centralize dados acadêmicos, acompanhe o desempenho institucional e gerencie a comunicação estratégica em um único ecossistema seguro e ágil.
         </p>
 
-        <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/10">
-          <div>
-            <p className="text-3xl font-bold text-green-400">100%</p>
-            <p className="text-xs text-slate-400 uppercase tracking-wider mt-1">Nuvem Protegida</p>
-          </div>
-          <div>
-            <p className="text-3xl font-bold text-emerald-400">+15k</p>
-            <p className="text-xs text-slate-400 uppercase tracking-wider mt-1">Atividades Diárias</p>
-          </div>
-        </div>
+        
       </div>
 
       {/* SEÇÃO DIAGONAL BRANCA À DIREITA (Corta a tela no desktop) */}
@@ -140,16 +131,16 @@ export default function App() {
             <div className="w-14 h-14 bg-gradient-to-tr from-green-500 to-green-600 rounded-2xl flex items-center justify-center shadow-lg shadow-green-500/20 mb-4 ring-4 ring-green-500/10">
               <School className="w-8 h-8 text-white stroke-[1.8]" />
             </div>
-            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">
+            <h2 className="text-2xl font-semibold text-slate-800 tracking-tight">
               {isRecovering 
                 ? 'Recuperar Acesso' 
-                : isLogin ? 'Painel de Direção' : 'Novo Registro de Gestão'
+                : isLogin ? 'Bem-Vindo' : 'Novo Registro de Gestão'
               }
             </h2>
             <p className="text-sm text-slate-500 mt-1.5">
               {isRecovering 
                 ? 'Digite seu e-mail institucional cadastrado' 
-                : 'CRM de Gestão Escolar Integrada'
+                : 'CRM de Gestão de Ligas Acadêmicas'
               }
             </p>
           </div>
@@ -174,7 +165,7 @@ export default function App() {
             <form onSubmit={handleAuth} className="space-y-5">
               {/* Campo E-mail */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                <label className="block text-sm font-semibold  tracking-wider text-slate-500 mb-2">
                   E-mail Institucional
                 </label>
                 <div className="relative group">
@@ -195,14 +186,14 @@ export default function App() {
               {/* Campo Senha */}
               <div>
                 <div className="flex justify-between items-center mb-2">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
+                  <label className="block text-sm font-semibold  tracking-wider text-slate-500">
                     Senha de Acesso
                   </label>
                   {isLogin && (
                     <button
                       type="button"
                       onClick={() => setIsRecovering(true)}
-                      className="text-xs text-green-600 hover:text-green-700 font-semibold hover:underline transition-colors focus:outline-none"
+                      className="text-sm text-green-600 hover:text-green-700 font-semibold hover:underline transition-colors focus:outline-none"
                     >
                       Esqueceu a senha?
                     </button>
@@ -232,7 +223,7 @@ export default function App() {
 
               {/* AVISO DE SEGURANÇA (Apenas para Cadastro) */}
               {!isLogin && (
-                <div className="flex items-start gap-2 text-xs text-slate-500 leading-relaxed py-1">
+                <div className="flex items-start gap-2 text-sm text-slate-500 leading-relaxed py-1">
                   <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                   <span>Ao criar a conta, você confirma possuir autorização administrativa da reitoria.</span>
                 </div>
@@ -242,7 +233,7 @@ export default function App() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-green-600 text-white font-bold py-3.5 px-6 rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-300 shadow-md shadow-green-500/10 focus:ring-4 focus:ring-green-500/20 disabled:opacity-50 disabled:pointer-events-none mt-4 text-sm tracking-wide"
+                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold py-3.5 px-6 rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-300 shadow-md shadow-green-500/10 focus:ring-4 focus:ring-green-500/20 disabled:opacity-50 disabled:pointer-events-none mt-4 text-sm tracking-wide"
               >
                 {loading ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
@@ -258,7 +249,7 @@ export default function App() {
             /* FORMULÁRIO DE RECUPERAÇÃO DE SENHA */
             <div className="space-y-5">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                <label className="block text-sm font-semibold  tracking-wider text-slate-500 mb-2">
                   E-mail Corporativo
                 </label>
                 <div className="relative group">
@@ -280,7 +271,7 @@ export default function App() {
                 type="button"
                 onClick={handleRecovery}
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold py-3.5 px-6 rounded-xl transition-all duration-300 shadow-md shadow-green-500/10 disabled:opacity-50 disabled:pointer-events-none text-sm tracking-wide"
+                className="w-full flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold py-3.5 px-6 rounded-xl transition-all duration-300 shadow-md shadow-green-500/10 disabled:opacity-50 disabled:pointer-events-none text-sm tracking-wide"
               >
                 {loading ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
@@ -325,7 +316,7 @@ export default function App() {
           )}
 
           {/* RODAPÉ DO CARD */}
-          <div className="mt-8 flex items-center justify-center gap-1.5 text-xs text-slate-400 font-medium">
+          <div className="mt-8 flex items-center justify-center gap-1.5 text-sm text-slate-400 font-medium hidden">
             <BookOpen className="w-3.5 h-3.5" />
             <span>Gestão Escolar Conectada &copy; 2026</span>
           </div>

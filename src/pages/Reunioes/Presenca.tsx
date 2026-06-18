@@ -15,9 +15,11 @@ import {
   RefreshCw,
   Sparkles,
   Check,
-  UserCheck
+  UserCheck,
+  ExternalLink
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { Link } from 'react-router-dom';
 
 // Interfaces baseadas no seu schema do banco de dados
 interface Meeting {
@@ -57,6 +59,7 @@ export default function App() {
   
   // Estados de UI/Filtros
   const [searchTerm, setSearchTerm] = useState('');
+  const [meetingSearch, setMeetingSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -111,7 +114,6 @@ export default function App() {
         setSelectedMeetingId(meetingsData[0].id);
       }
 
-      showNotification('success', 'Dados de reuniões e membros sincronizados!');
     } catch (err: any) {
       showNotification('error', `Falha ao sincronizar: ${err.message}`);
     } finally {
@@ -317,47 +319,54 @@ export default function App() {
         <div className="space-y-6">
           
           {/* PAINEL SELETOR DE REUNIÃO E INFO */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
             
             {/* Seletor */}
-            <div className="lg:col-span-1 border border-green-300 rounded-2xl p-5 flex flex-col justify-between">
+            <div className="lg:col-span-1 border border-green-300 rounded-2xl p-5 flex flex-col  justify-between">
               <div>
                 <h3 className="text-md font-semibold tracking-wider text-slate-700 mb-4 flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-indigo-400" />
                   Selecione a Reunião
                 </h3>
-                
-                <div className='flex items-center gap-2'>
-                  {meetings.length === 0 ? (
+                {meetings.length === 0 ? (
                     <div className="text-center py-6 text-slate-500">
                       <FileText className="w-8 h-8 mx-auto mb-2 opacity-50" />
                       <p className="text-sm">Nenhuma ata de reunião cadastrada.</p>
                     </div>
                   ) : (
-                    <select
-                      value={selectedMeetingId}
-                      onChange={(e) => setSelectedMeetingId(e.target.value)}
-                      className="w-full  border border-slate-300 rounded-xl px-3.5 py-3 text-sm text-slate-700 focus:outline-none focus:border-indigo-500 transition-colors"
-                    >
-                      {meetings.map((meeting) => (
-                        <option key={meeting.id} value={meeting.id}>
-                          {meeting.date} - {meeting.title} {meeting.codigo ? `[${meeting.codigo}]` : ''}
-                        </option>
-                      ))}
-                    </select>
+                    <>
+                      <input
+                        list="meetings-list"
+                        value={meetingSearch}
+                        onChange={(e) => {
+                          const value = e.target.value;
+
+                          setMeetingSearch(value);
+
+                          const meeting = meetings.find(
+                            (m) =>
+                              `${m.date} - ${m.title} ${m.codigo ? `[${m.codigo}]` : ''}` === value
+                          );
+
+                          if (meeting) {
+                            setSelectedMeetingId(meeting.id);
+                          }
+                        }}
+                        placeholder="Pesquisar reunião..."
+                        className="w-full border border-slate-300 rounded-xl px-3.5 py-3 text-sm text-slate-700 focus:outline-none focus:border-indigo-500 transition-colors"
+                      />
+
+                      <datalist id="meetings-list">
+                        {meetings.map((meeting) => (
+                          <option
+                            key={meeting.id}
+                            value={`${meeting.date.split('-').reverse().join('/')} - ${meeting.title} ${meeting.codigo ? `[${meeting.codigo}]` : ''}`}
+                          />
+                        ))}
+                      </datalist>
+                    </>
                   )}
-                  {/* Sincronização manual */}
-                  <div className=" border-green-300 flex justify-between items-center">
-                  
-                    <button
-                      onClick={fetchMeetingsAndMembers}
-                      disabled={loading}
-                      className="text-xs  text-green-700 hover:text-green-300 font-medium py-1.5 px-2 rounded-lg border  flex items-center gap-1.5 transition-colors cursor-pointer"
-                    >
-                      <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-                    </button>
-                  </div>
-                </div>
+               
               </div>
             </div>
 
@@ -366,14 +375,26 @@ export default function App() {
               {selectedMeeting ? (
                 <div className="space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <span className="inline-flex items-center gap-1 text-sm font-semibold  tracking-wider text-slate-700 bg-green-500/10 px-2.5 py-1 rounded-md">
-                      Reunião Selecionada
-                    </span>
+                    <div className='flex gap-2'>
+                      <span className="inline-flex items-center gap-1 text-sm font-semibold  tracking-wider text-slate-700 bg-green-500/10 px-2.5 py-1 rounded-md">
+                        Reunião Selecionada
+                      </span>
+                      <Link
+                        to={`${window.location.origin}/meet/confirm/${selectedMeeting.id}`}
+                        target='_blank'
+                        className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 transition"
+                        title="Link de presença"
+                      >
+                        <ExternalLink size={16} className="text-green-700" />
+                      
+                      </Link>
+                    </div>
                     {selectedMeeting.codigo && (
                       <span className="text-xs text-slate-600  px-2 py-1 rounded font-mono border border-slate-300">
                         CÓDIGO: {selectedMeeting.codigo}
                       </span>
                     )}
+                   
                   </div>
                   
                   <h2 className="text-xl font-semibold text-slate-700">{selectedMeeting.title}</h2>

@@ -9,7 +9,8 @@ import {
   Ticket,
   Users,
   Book,
-  Handshake
+  Handshake,
+  DollarSign
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -57,8 +58,21 @@ export default function Sidebar({ userEmail,cargo }: SidebarProps) {
           path: '/equipe/horas', 
           label: 'Banco de horas',
           allowedRoles: [ROLES.OWNER]
+        },
+        { 
+          id: 'pagamentos', 
+          path: '/equipe/pagamentos', 
+          label: 'Pagamentos',
+          allowedRoles: [ROLES.OWNER]
         }
       ]
+    },
+    {
+      id:'financeiro',
+      path: '/financeiro',
+      label: 'Financeiro',
+      icon: DollarSign,
+      allowedRoles: [ROLES.OWNER]
     },
     {
       id:'reunioes',
@@ -191,7 +205,7 @@ const filteredMenuItems = menuItems.filter(item =>
                   )}
                 />
                 {!isCollapsed && (
-                  <span className="font-semibold text-sm truncate">
+                  <span className=" text-sm truncate">
                     {item.label}
                   </span>
                 )}
@@ -212,7 +226,7 @@ const filteredMenuItems = menuItems.filter(item =>
                 className={cn(
                   "block text-sm px-2 py-1 rounded-md transition-colors",
                   isSubActive
-                    ? "text-green-600 font-semibold"
+                    ? "text-green-600 "
                     : "text-slate-500 hover:text-slate-800"
                 )}
               >
@@ -239,7 +253,7 @@ const filteredMenuItems = menuItems.filter(item =>
 
             {!isCollapsed && (
               <div className="text-left min-w-0">
-                <p className="text-sm font-semibold text-slate-800 truncate">
+                <p className="text-sm  text-slate-800 truncate">
                   {userEmail}
                 </p>
 

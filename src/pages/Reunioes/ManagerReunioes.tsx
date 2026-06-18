@@ -18,9 +18,12 @@ import {
   Info,
   Check,
   Copy,
-  ExternalLink
+  ExternalLink,
+  Save
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import storage from "../../utilies/storage"
+import { Link } from 'react-router-dom';
 
 
 // --- INTERFACES ---
@@ -84,9 +87,9 @@ export default function ManagerReunioes() {
   const [newFacilitator, setNewFacilitator] = useState('');
   const [newRecorder, setNewRecorder] = useState('');
   const [selectedAttendees, setSelectedAttendees] = useState<string[]>([]); // Lista de nomes selecionados
-  const [newAgenda, setNewAgenda] = useState('');
   const [newNotes, setNewNotes] = useState('');
   const [codigo, setCodigo] = useState('')
+  
 
   // Itens de ação temporários no formulário de criação
   const [tempActions, setTempActions] = useState<Omit<ActionItem, 'id' | 'meeting_id' | 'created_at'>[]>([]);
@@ -141,18 +144,20 @@ export default function ManagerReunioes() {
         return;
       }
 
+      const collab = await storage.getCollaborator()
       // Buscar membros da tabela public.membros
       const { data: membersData, error: memError } = await supabase
         .from('membros')
         .select('id, nome, email, telefone, universidade, curso')
-        .order('nome', { ascending: true });
+        .order('nome', { ascending: true })
+        .eq('user_id', collab?.user_id)
 
       if (memError) throw memError;
 
       // Buscar atas
       const { data: meetingsData, error: mError } = await supabase
         .from('meeting_minutes')
-        .select('*')
+        .select('*, meeting_attendees(*)')
         .order('date', { ascending: false });
 
       if (mError) throw mError;
@@ -178,6 +183,7 @@ export default function ManagerReunioes() {
       setLoading(false);
     }
   };
+  
 
 
   const showAlert = (type: 'success' | 'error', text: string) => {
@@ -213,7 +219,7 @@ export default function ManagerReunioes() {
 
   const handleCreateMeeting = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle || !newFacilitator || !newRecorder || !newAgenda) {
+    if (!newTitle || !newFacilitator || !newRecorder) {
       showAlert('error', 'Por favor, preencha todos os campos obrigatórios (*).');
       return;
     }
@@ -228,7 +234,6 @@ export default function ManagerReunioes() {
       facilitator: newFacilitator,
       recorder: newRecorder,
       attendees: selectedAttendees,
-      agenda: newAgenda,
       notes: newNotes || null,
       codigo
     };
@@ -272,7 +277,6 @@ export default function ManagerReunioes() {
       setNewFacilitator('');
       setNewRecorder('');
       setSelectedAttendees([]);
-      setNewAgenda('');
       setNewNotes('');
       setTempActions([]);
       setCodigo('')
@@ -291,29 +295,25 @@ export default function ManagerReunioes() {
   };
   
 
-  const handleToggleStatus = async (actionId: string, currentStatus: string) => {
-    const statuses: ('Pendente' | 'Em Andamento' | 'Concluído')[] = ['Pendente', 'Em Andamento', 'Concluído'];
-    const currentIndex = statuses.indexOf(currentStatus as any);
-    const nextStatus = statuses[(currentIndex + 1) % statuses.length];
+  const handleUpdateStatus = async (
+  actionId: string,
+  newStatus: 'Pendente' | 'Em Andamento' | 'Concluído'
+) => {
+  try {
+    const { error } = await supabase
+      .from('action_items')
+      .update({ status: newStatus })
+      .eq('id', actionId);
 
-    try {
-      if (supabase) {
-        const { error } = await supabase
-          .from('action_items')
-          .update({ status: nextStatus })
-          .eq('id', actionId);
+    if (error) throw error;
 
-        if (error) throw error;
-        await fetchData();
-      } else {
-        setActionItems(prev => prev.map(act => act.id === actionId ? { ...act, status: nextStatus } : act));
-      }
-      showAlert('success', `Status da tarefa atualizado para: ${nextStatus}`);
-    } catch (err: any) {
-      console.error(err);
-      showAlert('error', 'Erro ao atualizar status: ' + err.message);
-    }
-  };
+    await fetchData();
+
+    showAlert('success', `Status atualizado para: ${newStatus}`);
+  } catch (err: any) {
+    showAlert('error', err.message);
+  }
+};
 
   const handleDeleteMeeting = async (meetingId: string) => {
     if (!confirm("Tem certeza que deseja remover permanentemente esta ata? Todos os itens de ação relacionados serão excluídos.")) {
@@ -341,6 +341,72 @@ export default function ManagerReunioes() {
       console.error(err);
       showAlert('error', 'Erro ao excluir ata: ' + err.message);
     }
+  };
+
+  const handleSaveMeeting = async () => {
+  if (!selectedMeeting) return;
+
+  try {
+    const { error } = await supabase
+      .from('meeting_minutes')
+      .update({
+        location: selectedMeeting.location,
+        end_time: selectedMeeting.end_time,
+        next_meeting_date: selectedMeeting.next_meeting_date,
+        agenda: selectedMeeting.agenda,
+      })
+      .eq('id', selectedMeeting.id);
+
+    if (error) return console.error(error);
+    
+    if (tempActions.length > 0) {
+      const actionPayloads = tempActions.map(act => ({
+        meeting_id: selectedMeeting.id,
+        task: act.task,
+        assignee_name: act.assignee_name,
+        assignee_email: act.assignee_email || null,
+        due_date: act.due_date || null,
+        status: act.status
+      }));
+
+      const { error: actionError } = await supabase
+        .from('action_items')
+        .insert(actionPayloads);
+
+      if (actionError) throw actionError;
+    }
+
+    showAlert('success', 'Ata atualizada com sucesso!');
+    setTempActions([])
+    await fetchData();
+
+  } catch (err: any) {
+    console.error(err);
+    showAlert('error', 'Erro ao atualizar ata: ' + err.message);
+  }
+  };
+  const handleDeleteAction = async (actionId: string) => {
+  const confirmDelete = window.confirm(
+    'Deseja realmente excluir esta tarefa?'
+  );
+
+  if (!confirmDelete) return;
+
+  try {
+    const { error } = await supabase
+      .from('action_items')
+      .delete()
+      .eq('id', actionId);
+
+    if (error) throw error;
+
+    await fetchData();
+
+    showAlert('success', 'Tarefa removida com sucesso!');
+  } catch (err: any) {
+    console.error(err);
+    showAlert('error', err.message);
+  }
   };
 
   // --- FILTROS & CÁLCULOS ---
@@ -375,13 +441,23 @@ export default function ManagerReunioes() {
     return acc;
   }, {} as Record<string, { name: string, email: string, tasks: ActionItem[] }>);
 
+  const canEditMeeting = (meeting: Meeting) => {
+    const limit = new Date(meeting.created_at);
+    limit.setHours(limit.getHours() + 48);
+
+    return new Date() <= limit;
+  };
+  const isEditable = selectedMeeting
+  ? canEditMeeting(selectedMeeting)
+  : false;
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans">
       {/* HEADER */}
       <header className="bg-gradient-to-r from-slate-900 to-green-950 text-white shadow-md">
         <div className="max-w-7xl mx-auto px-4 py-5 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="bg-emerald-700 p-2.5 rounded-2xl shadow-inner">
+            <div className="bg-emerald-700 p-2 rounded-2xl shadow-inner">
               <BookOpen className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -390,7 +466,7 @@ export default function ManagerReunioes() {
           </div>
           
           {/* Navegação principal */}
-          <div className="flex bg-slate-800/60 p-1.5 rounded-2xl border border-slate-700/50">
+          <div className="flex bg-slate-800/60 p-1 rounded-2xl border border-slate-700/50">
             <button 
               onClick={() => setActiveTab('list')}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
@@ -456,24 +532,24 @@ export default function ManagerReunioes() {
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 
                 {/* Lateral Esquerda: Lista de Atas */}
-                <div className="lg:col-span-5 flex flex-col gap-4">
+                <div className="lg:col-span-4 flex flex-col gap-4">
                   <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80">
                     <h2 className="text-lg font-semibold text-slate-900 mb-3 flex items-center gap-2">
                       Histórico de Reuniões
-                      <span className="text-sm font-normal bg-green-50 text-green-800 px-2 py-0.5 rounded-full font-mono">
+                      <span className="text-sm font-normal bg-green-50 text-green-800 px-2 py-0 rounded-full font-mono">
                         {filteredMeetings.length}
                       </span>
                     </h2>
                     
                     {/* Barra de Pesquisa */}
                     <div className="relative mb-3">
-                      <Search className="w-4 h-4 text-slate-600 absolute left-3.5 top-3.5" />
+                      <Search className="w-4 h-4 text-slate-600 absolute left-3 top-3" />
                       <input 
                         type="text" 
                         placeholder="Buscar por título, facilitador ou pauta..." 
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-700 bg-slate-50/50"
+                        className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-700 bg-slate-50/50"
                       />
                     </div>
 
@@ -488,7 +564,7 @@ export default function ManagerReunioes() {
                           <div 
                             key={meeting.id}
                             onClick={() => setSelectedMeeting(meeting)}
-                            className={`p-3.5 rounded-xl cursor-pointer transition-all border text-left flex justify-between items-center ${
+                            className={`p-3 rounded-xl cursor-pointer transition-all border text-left flex justify-between items-center ${
                               selectedMeeting?.id === meeting.id 
                                 ? 'bg-green-50/70 border-green-200 shadow-sm' 
                                 : 'bg-white hover:bg-slate-50 border-slate-100'
@@ -496,13 +572,13 @@ export default function ManagerReunioes() {
                           >
                             <div className="min-w-0 flex-1">
                               <h3 className="font-semibold text-slate-900 text-sm truncate">{meeting.title}</h3>
-                              <div className="flex items-center gap-3 mt-1.5 text-sm text-slate-500">
+                              <div className=" gap-3 mt-1 text-sm text-slate-500">
                                 <span className="flex items-center gap-1">
-                                  <Calendar className="w-3.5 h-3.5 shrink-0" />
+                                  <Calendar className="w-3 h-3 shrink-0" />
                                   {meeting.date}
                                 </span>
-                                <span className="flex items-center gap-1 truncate">
-                                  <User className="w-3.5 h-3.5 shrink-0" />
+                                <span className="flex items-center gap-1 truncate ">
+                                  <User className="w-3 h-3 shrink-0" />
                                   {meeting.facilitator}
                                 </span>
                               </div>
@@ -518,7 +594,7 @@ export default function ManagerReunioes() {
                 </div>
 
                 {/* Lateral Direita: Detalhamento da Ata Selecionada */}
-                <div className="lg:col-span-7">
+                <div className="lg:col-span-8">
                   {selectedMeeting ? (
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden flex flex-col h-full">
                       
@@ -526,8 +602,8 @@ export default function ManagerReunioes() {
                       <div className="p-6 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-green-50/30">
                         <div className="flex justify-between items-start gap-4">
                           <div>
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-semibold bg-green-50 text-green-800">
-                              <Calendar className="w-3.5 h-3.5" />
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-sm font-semibold bg-green-50 text-green-800">
+                              <Calendar className="w-3 h-3" />
                               {selectedMeeting.date}
                             </span>
                             <h2 className="text-3xl font-semibold text-slate-900 mt-2 pl-2">{selectedMeeting.title}</h2>
@@ -537,67 +613,81 @@ export default function ManagerReunioes() {
                               </span>
 
                               <button
-  onClick={() => copiarCodigo(selectedMeeting.codigo, 'codigo')}
-  className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 transition"
-  title="Copiar código"
->
-  {copiadoCodigo ? (
-    <Check size={16} className="text-green-600" />
-  ) : (
-    <Copy size={16} className="text-slate-600" />
-  )}
-                              </button>
-
-                              <button
-                                onClick={() =>
-                                  copiarCodigo(
-                                    `${window.location.origin}/meet/confirm/${selectedMeeting.id}`,
-                                    'link'
-                                  )
-                                }
-                                className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 transition"
-                                title="Copiar link de presença"
+                                onClick={() => copiarCodigo(selectedMeeting.codigo, 'codigo')}
+                                className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 transition"
+                                title="Copiar código"
                               >
-                                {copiadoLink ? (
+                                {copiadoCodigo ? (
                                   <Check size={16} className="text-green-600" />
                                 ) : (
-                                  <ExternalLink size={16} className="text-slate-600" />
+                                  <Copy size={16} className="text-slate-600" />
                                 )}
                               </button>
+
+                              <Link
+                                to={`${window.location.origin}/meet/confirm/${selectedMeeting.id}`}
+                                target='_blank'
+                                className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 transition"
+                                title="Link de presença"
+                              >
+                                <ExternalLink size={16} className="text-slate-600" />
+                                
+                              </Link>
                             </div>
                           </div>
                           
-                          <button 
-                            onClick={() => handleDeleteMeeting(selectedMeeting.id)}
-                            className="p-2 text-rose-500 hover:text-white hover:bg-rose-500 rounded-xl transition-all border border-slate-200 hover:border-rose-500"
-                            title="Excluir esta ata"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className='flex items-center gap-3'>
+                            <button
+                              onClick={() => handleDeleteMeeting(selectedMeeting.id)}
+                              className="p-2 text-rose-500 hover:text-white hover:bg-rose-500 rounded-xl transition-all border border-slate-200 hover:border-rose-500"
+                              title="Excluir esta ata"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={handleSaveMeeting}
+                              disabled={!isEditable}
+                              className="flex items-center gap-2 font-semibold p-2 text-white bg-green-700 rounded-xl transition-all border border-slate-200"
+                              title="Salvar"
+                            >
+                              <Save className="w-4 h-4" />
+                              Salvar
+                            </button>
+                          </div>
 
                         </div>
 
                         {/* Metadados da reunião */}
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 pt-6 border-t border-slate-100 text-sm">
+                        <div className="grid grid-cols-2 gap-2 mt-2 pt-6 border-t border-slate-100 text-sm">
                           <div>
-                            <span className="text-slate-600 block mb-1">FACILITADOR(A)</span>
+                            <span className="text-slate-600 block mb-1">Facilitador(A)</span>
                             <span className="font-semibold text-slate-800 flex items-center gap-1">
-                              <User className="w-3.5 h-3.5 text-green-700" />
+                              <User className="w-3 h-3 text-green-700" />
                               {selectedMeeting.facilitator}
                             </span>
                           </div>
                           <div>
-                            <span className="text-slate-600 block mb-1">REDATOR(A)</span>
+                            <span className="text-slate-600 block mb-1">Redator(A)</span>
                             <span className="font-semibold text-slate-800 flex items-center gap-1">
-                              <FileText className="w-3.5 h-3.5 text-green-700" />
+                              <FileText className="w-3 h-3 text-green-700" />
                               {selectedMeeting.recorder}
                             </span>
                           </div>
                           <div className="col-span-2">
-                            <span className="text-slate-600 block mb-1">LOCAL / LINK</span>
-                            <span className="font-semibold text-slate-800 truncate block">
-                              {selectedMeeting.location || 'Não especificado'}
-                            </span>
+                            <span className="text-slate-600 block mb-1">Local / Link</span>
+                            <input
+                              type="text"
+                              value={selectedMeeting.location || ''}
+                              disabled={!isEditable}
+                              className={`${isEditable && 'border border-slate-400 p-1 rounded-lg'} w-full`}
+                              onChange={(e) => {
+                                if (!selectedMeeting) return;
+
+                                setSelectedMeeting({
+                                  ...selectedMeeting,
+                                  location: e.target.value,
+                                });
+                              }}                            />
                           </div>
                         </div>
 
@@ -606,17 +696,44 @@ export default function ManagerReunioes() {
                           <div>
                             <span className="text-slate-600 block mb-1">DURAÇÃO / HORÁRIO</span>
                             <span className="font-semibold text-slate-800 flex items-center gap-1">
-                              <Clock className="w-3.5 h-3.5 text-emerald-600" />
+                              <Clock className="w-3 h-3 text-emerald-600" />
                               {selectedMeeting.start_time && selectedMeeting.end_time 
-                                ? `${selectedMeeting.start_time} às ${selectedMeeting.end_time}`
+                                ? `${selectedMeeting.start_time} às`
                                 : 'Não registrado'}
+                                <input
+                                  type="time"
+                                  value={selectedMeeting.end_time || ''}
+                                  disabled={!isEditable}
+                                  className={`${isEditable && 'border border-slate-400 p-1 rounded-lg'}`}
+                                  onChange={(e) => {
+                                    if (!selectedMeeting) return;
+
+                                    setSelectedMeeting({
+                                      ...selectedMeeting,
+                                      end_time: e.target.value,
+                                    });
+                                  }}   
+                                />
                             </span>
                           </div>
                           <div>
-                            <span className="text-slate-600 block mb-1">PRÓXIMA REUNIÃO PROGRAMADA</span>
+                            <span className="text-slate-600 block mb-1">Próxima Reunião programada</span>
                             <span className="font-semibold text-green-800 flex items-center gap-1">
-                              <Calendar className="w-3.5 h-3.5 text-emerald-600" />
-                              {selectedMeeting.next_meeting_date || 'A definir'}
+                              <Calendar className="w-3 h-3 text-emerald-600" />
+                              <input
+                                type="date"
+                                value={selectedMeeting.next_meeting_date || ''}
+                                disabled={!isEditable}
+                                className={`${isEditable && 'border border-slate-400 p-1 rounded-lg'}`}
+                                onChange={(e) => {
+                                  if (!selectedMeeting) return;
+
+                                  setSelectedMeeting({
+                                    ...selectedMeeting,
+                                    next_meeting_date: e.target.value,
+                                  });
+                                }} 
+                              />
                             </span>
                           </div>
                         </div>
@@ -627,17 +744,26 @@ export default function ManagerReunioes() {
                         
                         {/* Participantes */}
                         <div>
-                          <h3 className="text-sm font-semibold  tracking-wider text-slate-600 mb-2 flex items-center gap-2">
-                            <Users className="w-3.5 h-3.5" />
-                            Presentes na Reunião ({selectedMeeting.attendees.length})
+                          <h3 className="text-sm tracking-wider text-slate-600 mb-2 flex items-center gap-2">
+                            <Users className="w-3 h-3" />
+                            Presentes na Reunião ({selectedMeeting?.meeting_attendees?.length || 0})
                           </h3>
-                          <div className="flex flex-wrap gap-1.5">
-                            {selectedMeeting.attendees.length > 0 ? (
-                              selectedMeeting.attendees.map((attendee, index) => (
-                                <span key={index} className="px-2.5 py-1 bg-slate-100 hover:bg-green-50 hover:text-green-800 text-slate-700 text-sm font-semibold rounded-lg transition-colors">
-                                  {attendee}
-                                </span>
-                              ))
+                          <div className="flex flex-wrap gap-1">
+                            {selectedMeeting?.meeting_attendees?.length > 0 ? (
+                              selectedMeeting?.meeting_attendees?.map((attendee) => {
+                                const member = members.find(
+                                  m => m.id === attendee.member_id
+                                );
+
+                                return (
+                                  <span
+                                    key={attendee.id}
+                                    className="px-2 py-1 bg-slate-100 hover:bg-green-50 hover:text-green-800 text-slate-700 text-sm font-semibold rounded-lg transition-colors"
+                                  >
+                                    {member?.nome || 'Membro não encontrado'}
+                                  </span>
+                                );
+                              })
                             ) : (
                               <span className="text-sm text-slate-600 italic">Nenhum participante listado</span>
                             )}
@@ -646,37 +772,124 @@ export default function ManagerReunioes() {
 
                         {/* Pauta */}
                         <div>
-                          <h3 className="text-sm font-semibold  tracking-wider text-slate-600 mb-2 flex items-center gap-2">
-                            <Briefcase className="w-3.5 h-3.5" />
+                          <h3 className="text-sm  tracking-wider text-slate-600 mb-2 flex items-center gap-2">
+                            <Briefcase className="w-3 h-3" />
                             Pauta Discutida
                           </h3>
-                          <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-sm leading-relaxed text-slate-700 whitespace-pre-wrap">
-                            {selectedMeeting.agenda}
-                          </div>
-                        </div>
+                          <textarea
+                            value={selectedMeeting.agenda}
+                            disabled={!isEditable}
+                            className={` w-full ${isEditable && 'border border-slate-400 p-2 rounded-lg'}`}
+                            onChange={(e) => {
+                              if (!selectedMeeting) return;
 
-                        {/* Notas Adicionais */}
-                        {selectedMeeting.notes && (
-                          <div>
-                            <h3 className="text-sm font-semibold  tracking-wider text-slate-600 mb-2 flex items-center gap-2">
-                              <FileText className="w-3.5 h-3.5" />
-                              Notas e Discussão
-                            </h3>
-                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-sm leading-relaxed text-slate-700 whitespace-pre-wrap">
-                              {selectedMeeting.notes}
-                            </div>
-                          </div>
-                        )}
+                              setSelectedMeeting({
+                                ...selectedMeeting,
+                                agenda: e.target.value,
+                              });
+                            }}
+                            rows={5}
+                          />
+                        </div>
 
                         {/* Plano de Ação - Quem fez cada coisa */}
                         <div className="border-t border-slate-100 pt-6">
-                          <h3 className="text-sm font-semibold text-slate-950 mb-3 flex items-center gap-2">
+                          <h3 className="text-sm text-slate-950 mb-3 flex items-center gap-2">
                             <CheckSquare className="w-4 h-4 text-green-800" />
                             Plano de Ação Registrado
-                            <span className="text-sm font-normal text-slate-600">
-                              (Clique para alterar o status da tarefa)
-                            </span>
                           </h3>
+
+                          <div className="mb-4">
+                            
+                            {isEditable && 
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-4">
+                              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                <div className="md:col-span-2">
+                                  <label className="block text-sm font-semibold text-slate-600 mb-1">Tarefa de Ação</label>
+                                  <input 
+                                    type="text"
+                                    value={tempTask}
+                                    onChange={(e) => setTempTask(e.target.value)}
+                                    placeholder="Ex: Revisar planilha de orçamento"
+                                    className="w-full px-3 py-1 rounded-lg border border-slate-200 text-sm focus:ring-1 focus:ring-green-700 outline-none"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-semibold text-slate-600 mb-1">Responsável *</label>
+                                  <select 
+                                    value={tempAssigneeId}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setTempAssigneeId(val);
+                                      const found = members.find(m => m.id === val);
+                                      if (found) {
+                                        setTempAssignee(found.nome);
+                                        setTempEmail(found.email);
+                                      } else {
+                                        setTempAssignee('');
+                                        setTempEmail('');
+                                      }
+                                    }}
+                                    className="w-full px-3 py-1 rounded-lg border border-slate-200 text-sm focus:ring-1 focus:ring-green-700 outline-none bg-white"
+                                  >
+                                    <option value="">Selecione o responsável...</option>
+                                    {members.map(member => (
+                                      <option key={member.id} value={member.id}>{member.nome}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-semibold text-slate-600 mb-1">Data Limite (Prazo)</label>
+                                  <input 
+                                    type="date"
+                                    value={tempDueDate}
+                                    onChange={(e) => setTempDueDate(e.target.value)}
+                                    className="w-full px-3 py-1 rounded-lg border border-slate-200 text-sm focus:ring-1 focus:ring-green-700 outline-none"
+                                  />
+                                </div>
+                              </div>
+
+                              {tempEmail && (
+                                <p className="text-sm text-slate-500 font-medium">
+                                  E-mail vinculado automaticamente: <span className="text-green-800 font-semibold">{tempEmail}</span>
+                                </p>
+                              )}
+
+                              <button 
+                                type="button"
+                                onClick={addTempAction}
+                                className="flex items-center gap-2 text-sm bg-green-800 text-white px-4 py-2 rounded-lg hover:bg-green-900 transition-all font-semibold"
+                              >
+                                <Plus className="w-3 h-3" /> Atribuir Tarefa
+                              </button>
+                            </div>}
+
+                            {/* Exibição das tarefas temporárias adicionadas */}
+                            {tempActions.length > 0 && (
+                              <div className="mt-4 space-y-2">
+                                <span className="text-sm font-semibold text-slate-500 ">Tarefas Adicionadas na Fila:</span>
+                                {tempActions.map((act, index) => (
+                                  <div key={index} className="p-3 bg-white border border-slate-100 rounded-xl flex items-center justify-between gap-4 shadow-sm text-sm">
+                                    <div className="min-w-0 flex-1">
+                                      <p className="font-semibold text-slate-800">{act.task}</p>
+                                      <p className="text-slate-500 mt-0">
+                                        Responsável: <span className="font-semibold">{act.assignee_name}</span> 
+                                        {act.assignee_email ? ` (${act.assignee_email})` : ''} 
+                                        {act.due_date ? ` • Prazo: ${act.due_date}` : ''}
+                                      </p>
+                                    </div>
+                                    <button 
+                                      type="button"
+                                      onClick={() => removeTempAction(index)}
+                                      className="text-rose-500 hover:text-rose-700 font-semibold px-2 py-1 hover:bg-rose-50 rounded"
+                                    >
+                                      Remover
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
 
                           {getMeetingActions(selectedMeeting.id).length === 0 ? (
                             <div className="text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">
@@ -684,11 +897,17 @@ export default function ManagerReunioes() {
                             </div>
                           ) : (
                             <div className="space-y-3">
-                              {getMeetingActions(selectedMeeting.id).map((action) => (
+                              {getMeetingActions(selectedMeeting.id).sort((a, b) => {
+                                  const order = {
+                                    'Pendente': 2,
+                                    'Em Andamento': 1,
+                                    'Concluído': 3,
+                                  };
+                                  return order[a.status] - order[b.status];
+                                }).map((action) => (
                                 <div 
                                   key={action.id}
-                                  onClick={() => handleToggleStatus(action.id, action.status)}
-                                  className={`p-3.5 rounded-xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-3 cursor-pointer ${
+                                  className={`p-3 rounded-xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-3  ${
                                     action.status === 'Concluído' 
                                       ? 'bg-emerald-50/40 border-emerald-100 opacity-80 hover:opacity-100' 
                                       : action.status === 'Em Andamento' 
@@ -698,7 +917,7 @@ export default function ManagerReunioes() {
                                 >
                                   <div className="flex items-start gap-3">
                                     {/* Ícone de Status */}
-                                    <div className="mt-0.5 shrink-0">
+                                    <div className="mt-0 shrink-0">
                                       {action.status === 'Concluído' ? (
                                         <CheckCircle className="w-5 h-5 text-emerald-600" />
                                       ) : action.status === 'Em Andamento' ? (
@@ -715,8 +934,8 @@ export default function ManagerReunioes() {
                                       </p>
                                       
                                       {/* Responsável */}
-                                      <div className="flex flex-wrap items-center gap-2 mt-1.5 text-sm text-slate-500">
-                                        <span className="bg-green-50 text-green-800 px-2 py-0.5 rounded font-semibold flex items-center gap-1">
+                                      <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-slate-500">
+                                        <span className="bg-green-50 text-green-800 px-2 py-0 rounded font-semibold flex items-center gap-1">
                                           <User className="w-3 h-3" />
                                           {action.assignee_name}
                                         </span>
@@ -737,15 +956,35 @@ export default function ManagerReunioes() {
                                         Prazo: {action.due_date}
                                       </span>
                                     )}
-                                    <span className={`px-2 py-1 rounded-md font-semibold ${
-                                      action.status === 'Concluído' 
-                                        ? 'bg-emerald-100 text-emerald-800' 
-                                        : action.status === 'Em Andamento' 
-                                          ? 'bg-amber-100 text-amber-800' 
-                                          : 'bg-slate-100 text-slate-600'
-                                    }`}>
-                                      {action.status}
-                                    </span>
+                                   <select
+                                      value={action.status}
+                                      disabled={!isEditable}
+                                      onChange={(e) =>
+                                        handleUpdateStatus(
+                                          action.id,
+                                          e.target.value as 'Pendente' | 'Em Andamento' | 'Concluído' 
+                                        )
+                                      }
+                                      className={`px-3 py-1 rounded-md font-semibold border outline-none cursor-pointer ${
+                                        action.status === 'Concluído'
+                                          ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                                          : action.status === 'Em Andamento'
+                                          ? 'bg-amber-100 text-amber-800 border-amber-200'
+                                          : 'bg-slate-100 text-slate-600 border-slate-200'
+                                      }`}
+                                    >
+                                      <option value="Pendente">Pendente</option>
+                                      <option value="Em Andamento">Em Andamento</option>
+                                      <option value="Concluído">Concluído</option>
+                                    </select>
+                                    {isEditable &&
+                                    <button
+                                      onClick={() => handleDeleteAction(action.id)}
+                                      className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                      title="Excluir tarefa"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>}
                                   </div>
                                 </div>
                               ))}
@@ -891,163 +1130,10 @@ export default function ManagerReunioes() {
                     </div>
                   </div>
 
-                 {/* Bloco 2: Participantes e Conteúdo */}
-                    <div className="border-t border-slate-100 pt-6">
-                    <h3 className="text-sm font-semibold text-green-800 tracking-wide mb-4">
-                        2. Conteúdo & Discussões
-                    </h3>
 
-                    <div className="space-y-5">
-                        {/* PARTICIPANTES */}
-                        <div>
-                        <label className="block text-sm font-semibold text-slate-600 mb-3">
-                            Presença dos Membros
-                        </label>
-
-                        {members.length === 0 ? (
-                            <p className="text-sm text-slate-600 italic">
-                            Nenhum membro carregado para selecionar.
-                            </p>
-                        ) : (
-                            <div className="grid md:grid-cols-2 gap-4">
-                            {/* TODOS OS MEMBROS */}
-                            <div className="border border-slate-200 rounded-2xl overflow-hidden">
-                                <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
-                                <h4 className="font-semibold text-slate-700">
-                                    Lista de Membros
-                                </h4>
-                                </div>
-
-                                <div className="h-64 overflow-y-auto p-3 space-y-2">
-                                {members.map((member) => {
-                                    const isSelected = selectedAttendees.includes(member.nome);
-
-                                    return (
-                                    <button
-                                        key={member.id}
-                                        type="button"
-                                        onClick={() => {
-                                        if (isSelected) {
-                                            setSelectedAttendees(
-                                            selectedAttendees.filter(
-                                                (name) => name !== member.nome
-                                            )
-                                            );
-                                        } else {
-                                            setSelectedAttendees([
-                                            ...selectedAttendees,
-                                            member.nome,
-                                            ]);
-                                        }
-                                        }}
-                                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl border transition-all ${
-                                        isSelected
-                                            ? "bg-green-50 border-green-300 text-green-800"
-                                            : "bg-white border-slate-200 hover:bg-slate-50"
-                                        }`}
-                                    >
-                                        <span className="text-sm font-medium">
-                                        {member.nome}
-                                        </span>
-
-                                        {isSelected && (
-                                        <span className="text-xs font-bold">
-                                            ✓ 
-                                        </span>
-                                        )}
-                                    </button>
-                                    );
-                                })}
-                                </div>
-                            </div>
-
-                            {/* PRESENTES */}
-                            <div className="border border-green-200 rounded-2xl overflow-hidden">
-                                <div className="bg-green-50 px-4 py-3 border-b border-green-200 flex items-center justify-between">
-                                <h4 className="font-semibold text-green-800">
-                                    Presentes
-                                </h4>
-
-                                <span className="text-xs font-bold bg-green-700 text-white px-2 py-1 rounded-full">
-                                    {selectedAttendees.length}
-                                </span>
-                                </div>
-
-                                <div className="h-64 overflow-y-auto p-3">
-                                {selectedAttendees.length === 0 ? (
-                                    <div className="h-full flex items-center justify-center text-sm text-slate-400 italic">
-                                    Nenhum participante selecionado
-                                    </div>
-                                ) : (
-                                    <div className="space-y-2">
-                                    {selectedAttendees.map((name) => (
-                                        <div
-                                        key={name}
-                                        className="flex items-center justify-between px-3 py-2 rounded-xl bg-green-100 border border-green-200"
-                                        >
-                                        <span className="text-sm font-medium text-green-900">
-                                            {name}
-                                        </span>
-
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                            setSelectedAttendees(
-                                                selectedAttendees.filter(
-                                                (item) => item !== name
-                                                )
-                                            )
-                                            }
-                                            className="text-xs font-bold text-red-500 hover:text-red-700"
-                                        >
-                                            <Trash2 size={14}/>
-                                        </button>
-                                        </div>
-                                    ))}
-                                    </div>
-                                )}
-                                </div>
-                            </div>
-                            </div>
-                        )}
-                        </div>
-
-                        {/* PAUTA */}
-                        <div>
-                        <label className="block text-sm font-semibold text-slate-600 mb-1">
-                            Pauta da Reunião *
-                        </label>
-
-                        <textarea
-                            rows={3}
-                            required
-                            value={newAgenda}
-                            onChange={(e) => setNewAgenda(e.target.value)}
-                            placeholder="Descreva brevemente os temas principais que foram abordados..."
-                            className="w-full px-4 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-green-700 outline-none resize-y"
-                        />
-                        </div>
-
-                        {/* ANOTAÇÕES */}
-                        <div>
-                        <label className="block text-sm font-semibold text-slate-600 mb-1">
-                            Anotações Gerais / Decisões Tomadas
-                        </label>
-
-                        <textarea
-                            rows={4}
-                            value={newNotes}
-                            onChange={(e) => setNewNotes(e.target.value)}
-                            placeholder="Registre aqui discussões detalhadas, votações ou observações adicionais..."
-                            className="w-full px-4 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-green-700 outline-none resize-y"
-                        />
-                        </div>
-                    </div>
-                    </div>
-
-                  {/* Bloco 3: Itens de Ação de Responsabilidade */}
+                  {/* Bloco 2: Itens de Ação de Responsabilidade */}
                   <div className="border-t border-slate-100 pt-6">
-                    <h3 className="text-sm font-semibold text-green-800  tracking-wide mb-1">3. Definir Plano de Ação (Quem faz o que?)</h3>
+                    <h3 className="text-sm font-semibold text-green-800  tracking-wide mb-1">2. Definir Plano de Ação (Quem faz o que?)</h3>
                     <p className="text-sm text-slate-600 mb-4">Insira tarefas individuais selecionando um dos membros cadastrados abaixo.</p>
                     
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-4">
@@ -1059,7 +1145,7 @@ export default function ManagerReunioes() {
                             value={tempTask}
                             onChange={(e) => setTempTask(e.target.value)}
                             placeholder="Ex: Revisar planilha de orçamento"
-                            className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-sm focus:ring-1 focus:ring-green-700 outline-none"
+                            className="w-full px-3 py-1 rounded-lg border border-slate-200 text-sm focus:ring-1 focus:ring-green-700 outline-none"
                           />
                         </div>
                         <div>
@@ -1078,7 +1164,7 @@ export default function ManagerReunioes() {
                                 setTempEmail('');
                               }
                             }}
-                            className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-sm focus:ring-1 focus:ring-green-700 outline-none bg-white"
+                            className="w-full px-3 py-1 rounded-lg border border-slate-200 text-sm focus:ring-1 focus:ring-green-700 outline-none bg-white"
                           >
                             <option value="">Selecione o responsável...</option>
                             {members.map(member => (
@@ -1092,7 +1178,7 @@ export default function ManagerReunioes() {
                             type="date"
                             value={tempDueDate}
                             onChange={(e) => setTempDueDate(e.target.value)}
-                            className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-sm focus:ring-1 focus:ring-green-700 outline-none"
+                            className="w-full px-3 py-1 rounded-lg border border-slate-200 text-sm focus:ring-1 focus:ring-green-700 outline-none"
                           />
                         </div>
                       </div>
@@ -1108,7 +1194,7 @@ export default function ManagerReunioes() {
                         onClick={addTempAction}
                         className="flex items-center gap-2 text-sm bg-green-800 text-white px-4 py-2 rounded-lg hover:bg-green-900 transition-all font-semibold"
                       >
-                        <Plus className="w-3.5 h-3.5" /> Atribuir Tarefa
+                        <Plus className="w-3 h-3" /> Atribuir Tarefa
                       </button>
                     </div>
 
@@ -1120,7 +1206,7 @@ export default function ManagerReunioes() {
                           <div key={index} className="p-3 bg-white border border-slate-100 rounded-xl flex items-center justify-between gap-4 shadow-sm text-sm">
                             <div className="min-w-0 flex-1">
                               <p className="font-semibold text-slate-800">{act.task}</p>
-                              <p className="text-slate-500 mt-0.5">
+                              <p className="text-slate-500 mt-0">
                                 Responsável: <span className="font-semibold">{act.assignee_name}</span> 
                                 {act.assignee_email ? ` (${act.assignee_email})` : ''} 
                                 {act.due_date ? ` • Prazo: ${act.due_date}` : ''}
@@ -1146,13 +1232,13 @@ export default function ManagerReunioes() {
                   <button 
                     type="button" 
                     onClick={() => setActiveTab('list')}
-                    className="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-all"
+                    className="px-5 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-all"
                   >
                     Cancelar
                   </button>
                   <button 
                     type="submit"
-                    className="bg-green-800 hover:bg-green-900 text-white px-6 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm flex items-center gap-2"
+                    className="bg-green-800 hover:bg-green-900 text-white px-6 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm flex items-center gap-2"
                   >
                     Salvar Ata de Reunião
                   </button>
@@ -1192,7 +1278,7 @@ export default function ManagerReunioes() {
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80">
                   <div className="mb-6">
                     <h2 className="text-lg font-semibold text-slate-900">Quadro Consolidado de Responsáveis</h2>
-                    <p className="text-slate-500 text-sm mt-0.5">Veja todas as tarefas ativas agrupadas individualmente pela pessoa designada.</p>
+                    <p className="text-slate-500 text-sm mt-0">Veja todas as tarefas ativas agrupadas individualmente pela pessoa designada.</p>
                   </div>
 
                   {Object.keys(assigneesSummary).length === 0 ? (
@@ -1219,12 +1305,12 @@ export default function ManagerReunioes() {
                             </div>
 
                             {/* Lista de Tarefas da pessoa */}
-                            <div className="space-y-2.5">
+                            <div className="space-y-2">
                               {assignee.tasks.map((task) => (
                                 <div key={task.id} className="p-3 bg-white rounded-xl border border-slate-200/60 shadow-sm text-sm">
                                   <div className="flex justify-between items-start gap-2">
                                     <p className="font-semibold text-slate-800 line-clamp-2">{task.task}</p>
-                                    <span className={`px-2 py-0.5 rounded text-sm font-semibold shrink-0 ${
+                                    <span className={`px-2 py-0 rounded text-sm font-semibold shrink-0 ${
                                       task.status === 'Concluído' 
                                         ? 'bg-emerald-50 text-emerald-800 border border-emerald-100' 
                                         : task.status === 'Em Andamento' 
@@ -1236,7 +1322,7 @@ export default function ManagerReunioes() {
                                   </div>
                                   
                                   {/* Rodapé da minitransação */}
-                                  <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-slate-100 text-sm text-slate-600">
+                                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100 text-sm text-slate-600">
                                     <span>Prazo: {task.due_date || 'A combinar'}</span>
                                     <span className="font-mono">ID Reunião: #{task.meeting_id.substring(0,4)}</span>
                                   </div>
