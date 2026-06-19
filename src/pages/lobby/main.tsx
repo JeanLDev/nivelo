@@ -1,6 +1,9 @@
+import { LeaguePreviewCard } from "../Configuracao/LeaguePreviewCard";
+
 export default function MainLobby () {
   return (
-    <div>
+    <div className="">
+      <LeaguePreviewCard/>
     </div>
   )
 }

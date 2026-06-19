@@ -10,7 +10,11 @@ import {
   Users,
   Book,
   Handshake,
-  DollarSign
+  DollarSign,
+  Settings,
+  BookA,
+  Calendar,
+  ThumbsUp
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -72,7 +76,15 @@ export default function Sidebar({ userEmail,cargo }: SidebarProps) {
       path: '/financeiro',
       label: 'Financeiro',
       icon: DollarSign,
-      allowedRoles: [ROLES.OWNER]
+      allowedRoles: [ROLES.OWNER],
+      subPath: [
+      { 
+        id: 'links', 
+        path: '/financeiro/links', 
+        label: 'Links de Pagamento',
+        allowedRoles: [ROLES.OWNER]
+      }
+    ]
     },
     {
       id:'reunioes',
@@ -103,12 +115,41 @@ export default function Sidebar({ userEmail,cargo }: SidebarProps) {
       allowedRoles: [ROLES.OWNER]
     },
     {
-    id:'eventos',
-    path: '/eventos',
-    label: 'Eventos',
-    icon: Ticket,
-    allowedRoles: [ROLES.OWNER],
-  }
+      id:'eventos',
+      path: '/eventos',
+      label: 'Eventos',
+      icon: Ticket,
+      allowedRoles: [ROLES.OWNER],
+    },
+    {
+      id:'agenda',
+      path: '/agenda',
+      label: 'Agenda',
+      icon: Calendar,
+      allowedRoles: [ROLES.OWNER],
+    },
+    {
+      id:'parceiros',
+      path: '/parceiros',
+      label: 'Parceiros',
+      icon: ThumbsUp,
+      allowedRoles: [ROLES.OWNER],
+    },
+    {
+      id:'configuracao',
+      path: '/configuracao',
+      label: 'Configuração',
+      icon: Settings,
+      allowedRoles: [ROLES.OWNER],
+      subPath: [
+      { 
+        id: 'mercadopago', 
+        path: '/configuracao/mercadopago', 
+        label: 'Mercado Pago',
+        allowedRoles: [ROLES.OWNER]
+      }
+    ]
+    }
 ];
 
   const handleLogout = async () => {

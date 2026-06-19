@@ -27,6 +27,12 @@ import MeetConfirm from './Public/Reunioes/MeetConfirm';
 import Pagamentos from './pages/Equipe/Financeiro/Pagamentos';
 import Financeiro from './pages/Financeiro/Financeiro';
 import BancoHorasManager from './pages/Equipe/Horas/HoursDatabase';
+import Settings from './pages/Configuracao/Settings';
+import ManagerAgenda from './pages/Agenda/ManagerAgenda';
+import LinksPage from './pages/Financeiro/LinksPage';
+import PaymentPortal from './Public/PaymentPage/PaymentPage';
+import MercadoPago from './pages/Configuracao/MercadoPago';
+import ManagerParceiros from './pages/Parceiros/ManagerParceiros';
 
 
 export default function App() {
@@ -160,6 +166,7 @@ export default function App() {
   <Routes>
     <Route path="/reset-password" element={<ResetPassword />} />
     <Route path="/meet/confirm/:id" element={<MeetConfirm />} />
+    <Route path="/pay/:id" element={<PaymentPortal />} />
     <Route path="/event/:id" 
       element={
       <EventPublic  
@@ -201,6 +208,8 @@ export default function App() {
             <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
               <Routes>
                 <Route path="/" element={<Navigate to="/lobby" replace />} />
+
+                <Route path='/lobby' element={<MainLobby/>}/>
 
                 {/**Eventos */}
                 <Route
@@ -255,7 +264,15 @@ export default function App() {
                   }
                 />
 
-
+                {/**Agenda */}
+                <Route
+                  path="/agenda"
+                  element={
+                    <ProtectedRoute allowedRoles={[ROLES.OWNER]} cargo={cargo}>
+                      <ManagerAgenda />
+                    </ProtectedRoute>
+                  }
+                />
 
 
 
@@ -267,6 +284,14 @@ export default function App() {
                       <Financeiro />
                     </ProtectedRoute>
                   }
+                />
+                <Route
+                path="/financeiro/links"
+                element={
+                  <ProtectedRoute allowedRoles={[ROLES.OWNER]} cargo={cargo}>
+                    <LinksPage />
+                  </ProtectedRoute>
+                }
                 />
 
                 {/**Reuniões */}
@@ -299,6 +324,33 @@ export default function App() {
                 }
                 />
 
+                {/**Clientes */}
+                <Route
+                path="/parceiros"
+                element={
+                  <ProtectedRoute allowedRoles={[ROLES.OWNER]} cargo={cargo}>
+                    <ManagerParceiros />
+                  </ProtectedRoute>
+                }
+                />
+
+                {/**Settings */}
+                <Route
+                path="/configuracao"
+                element={
+                  <ProtectedRoute allowedRoles={[ROLES.OWNER]} cargo={cargo}>
+                    <Settings />
+                  </ProtectedRoute>
+                }
+                />
+                <Route
+                path="/configuracao/mercadopago"
+                element={
+                  <ProtectedRoute allowedRoles={[ROLES.OWNER]} cargo={cargo}>
+                    <MercadoPago />
+                  </ProtectedRoute>
+                }
+                />
 
 
                 <Route path="*" element={<Navigate to="/lobby" replace />} />
